@@ -32,6 +32,7 @@ public class ClientRequestMetrics extends LatencyMetrics
     @Deprecated public static final Counter writeTimeouts = Metrics.newCounter(DefaultNameFactory.createMetricName("ClientRequestMetrics", "WriteTimeouts", null));
     @Deprecated public static final Counter readUnavailables = Metrics.newCounter(DefaultNameFactory.createMetricName("ClientRequestMetrics", "ReadUnavailables", null));
     @Deprecated public static final Counter writeUnavailables = Metrics.newCounter(DefaultNameFactory.createMetricName("ClientRequestMetrics", "WriteUnavailables", null));
+    public final OffendingQueriesMetrics offendingQueriesMetrics;
 
     public final Meter timeouts;
     public final Meter unavailables;
@@ -40,6 +41,7 @@ public class ClientRequestMetrics extends LatencyMetrics
     {
         super("ClientRequest", scope);
 
+        offendingQueriesMetrics = new OffendingQueriesMetrics(factory, 100);
         timeouts = Metrics.newMeter(factory.createMetricName("Timeouts"), "timeouts", TimeUnit.SECONDS);
         unavailables = Metrics.newMeter(factory.createMetricName("Unavailables"), "unavailables", TimeUnit.SECONDS);
     }

@@ -31,6 +31,7 @@ import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.sun.management.ThreadMXBean;
 import org.apache.cassandra.metrics.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -1514,8 +1515,12 @@ public class StorageProxy implements StorageProxyMBean
 
         protected void runMayThrow()
         {
+            ThreadMXBean tBean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
+            long beginAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
             RangeSliceReply result = new RangeSliceReply(command.executeLocally());
             MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+            long endAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+            result.allocationBytes = endAllocation - beginAllocation;
             handler.response(result);
         }
     }
@@ -1607,6 +1612,7 @@ public class StorageProxy implements StorageProxyMBean
 
         Keyspace keyspace = Keyspace.open(command.keyspace);
         List<Row> rows;
+        long memAllocatedBytes = 0;
         // now scan until we have enough results
         try
         {
@@ -1784,6 +1790,12 @@ public class StorageProxy implements StorageProxyMBean
                     {
                         throw new AssertionError(e); // no digests in range slices yet
                     }
+                    finally
+                    {
+                        for(MessageIn<RangeSliceReply> response: resolver.responses) {
+                            memAllocatedBytes += response.payload.allocationBytes;
+                        }
+                    }
 
                     // if we're done, great, otherwise, move to the next range
                     int count = countLiveRows ? liveRowCount : rows.size();
@@ -1839,6 +1851,12 @@ public class StorageProxy implements StorageProxyMBean
         {
             long latency = System.nanoTime() - startTime;
             rangeMetrics.addNano(latency);
+            rangeMetrics.offendingQueriesMetrics.update(
+               command.keyspace,
+               command.columnFamily,
+               command.rowFilter,
+               memAllocatedBytes,
+               latency);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.update(latency, TimeUnit.NANOSECONDS);
         }
         return command.postReconciliationProcessing(rows);

@@ -37,6 +37,8 @@ public class RangeSliceReply
 
     public final List<Row> rows;
 
+    public long allocationBytes = 0;
+
     public RangeSliceReply(List<Row> rows)
     {
         this.rows = rows;
@@ -67,6 +69,7 @@ public class RangeSliceReply
             out.writeInt(rsr.rows.size());
             for (Row row : rsr.rows)
                 Row.serializer.serialize(row, out, version);
+            out.writeLong(rsr.allocationBytes);
         }
 
         public RangeSliceReply deserialize(DataInput in, int version) throws IOException
@@ -75,7 +78,9 @@ public class RangeSliceReply
             List<Row> rows = new ArrayList<Row>(rowCount);
             for (int i = 0; i < rowCount; i++)
                 rows.add(Row.serializer.deserialize(in, version));
-            return new RangeSliceReply(rows);
+            RangeSliceReply reply = new RangeSliceReply(rows);
+            reply.allocationBytes = in.readLong();
+            return  reply;
         }
 
         public long serializedSize(RangeSliceReply rsr, int version)

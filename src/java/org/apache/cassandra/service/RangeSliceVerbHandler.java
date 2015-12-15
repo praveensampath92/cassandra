@@ -17,6 +17,9 @@
  */
 package org.apache.cassandra.service;
 
+import java.lang.management.ManagementFactory;
+
+import com.sun.management.ThreadMXBean;
 import org.apache.cassandra.db.AbstractRangeCommand;
 import org.apache.cassandra.db.RangeSliceReply;
 import org.apache.cassandra.db.filter.TombstoneOverwhelmingException;
@@ -36,7 +39,12 @@ public class RangeSliceVerbHandler implements IVerbHandler<AbstractRangeCommand>
                 /* Don't service reads! */
                 throw new RuntimeException("Cannot service reads while bootstrapping!");
             }
+
+            ThreadMXBean tBean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+            long beginAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
             RangeSliceReply reply = new RangeSliceReply(message.payload.executeLocally());
+            long endAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+            reply.allocationBytes = endAllocation - beginAllocation;
             Tracing.trace("Enqueuing response to {}", message.from);
             MessagingService.instance().sendReply(reply.createMessage(), id, message.from);
         }
