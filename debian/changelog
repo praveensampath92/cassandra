@@ -1,3 +1,9 @@
+cassandra (3.0.6-rubrik2) unstable; urgency=medium
+
+  * New release
+
+ -- Sharvanath Pathak <sharvanath@gmail.com>  Fri, 2 Sep 2016 19:42:39 -0700
+
 cassandra (3.0.6) unstable; urgency=medium
 
   * New release
