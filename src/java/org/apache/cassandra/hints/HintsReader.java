@@ -17,16 +17,15 @@
  */
 package org.apache.cassandra.hints;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-
 import javax.annotation.Nullable;
 
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.RateLimiter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +34,7 @@ import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.utils.AbstractIterator;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.CLibrary;
+
 
 /**
  * A paged non-compressed hints reader that provides two iterators:
@@ -187,6 +187,9 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
                 {
                     hint = computeNextInternal();
                 }
+                catch (EOFException e) {
+                    return endOfData();
+                }
                 catch (IOException e)
                 {
                     throw new FSReadError(e, file);
@@ -276,6 +279,9 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
                 try
                 {
                     buffer = computeNextInternal();
+                }
+                catch (EOFException e) {
+                    return endOfData();
                 }
                 catch (IOException e)
                 {
