@@ -328,6 +328,26 @@ public class CommitLogReplayer
         return !cfPersisted.get(cfId).contains(position);
     }
 
+    private boolean isFileEmpty(RandomAccessReader reader) {
+        long currentOffset = reader.getFilePointer();
+        reader.seek(0);
+        try {
+            while (reader.getFilePointer() < reader.length())
+            {
+                byte nextByte = reader.readByte();
+                if (nextByte != 0)
+                {
+                    return false;
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        } finally {
+            reader.seek(currentOffset);
+        }
+        return true;
+    }
+
     @SuppressWarnings("resource")
     public void recover(File file, boolean tolerateTruncation) throws IOException
     {
@@ -342,6 +362,12 @@ public class CommitLogReplayer
                 if (globalPosition.segment == desc.id)
                     reader.seek(globalPosition.position);
                 replaySyncSection(reader, (int) reader.length(), desc, desc.fileName(), tolerateTruncation);
+                return;
+            }
+
+
+            if (isFileEmpty(reader)) {
+                logger.info("Skipping empty logfile {}", file.getAbsolutePath());
                 return;
             }
 
