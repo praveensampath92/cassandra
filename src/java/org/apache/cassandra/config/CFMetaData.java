@@ -552,16 +552,21 @@ public final class CFMetaData
         return isIndex ? cfName.substring(0, cfName.indexOf('.')) : null;
     }
 
-    public ReadRepairDecision newReadRepairDecision()
+    public ReadRepairDecision newReadRepairDecision(ConsistencyLevel consistencyLevel)
     {
-        double chance = ThreadLocalRandom.current().nextDouble();
-        if (params.readRepairChance > chance)
-            return ReadRepairDecision.GLOBAL;
+        // 11980: Excluding EACH_QUORUM reads from potential RR, so that we do not miscount DC responses
+        if (consistencyLevel == ConsistencyLevel.EACH_QUORUM) {
+            return ReadRepairDecision.NONE;
+        } else {
+            double chance = ThreadLocalRandom.current().nextDouble();
+            if (params.readRepairChance > chance)
+                return ReadRepairDecision.GLOBAL;
 
-        if (params.dcLocalReadRepairChance > chance)
-            return ReadRepairDecision.DC_LOCAL;
+            if (params.dcLocalReadRepairChance > chance)
+                return ReadRepairDecision.DC_LOCAL;
 
-        return ReadRepairDecision.NONE;
+            return ReadRepairDecision.NONE;
+        }
     }
 
     public AbstractType<?> getColumnDefinitionNameComparator(ColumnDefinition.Kind kind)

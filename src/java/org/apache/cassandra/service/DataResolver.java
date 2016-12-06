@@ -26,6 +26,7 @@ import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.filter.ClusteringIndexFilter;
 import org.apache.cassandra.db.filter.DataLimits;
@@ -353,14 +354,14 @@ public class DataResolver extends ResponseResolver
             {
                 for (int i = 0; i < repairs.length; i++)
                 {
-                    if (repairs[i] == null)
-                        continue;
-
-                    // use a separate verb here because we don't want these to be get the white glove hint-
-                    // on-timeout behavior that a "real" mutation gets
-                    Tracing.trace("Sending read-repair-mutation to {}", sources[i]);
-                    MessageOut<Mutation> msg = new Mutation(repairs[i]).createMessage(MessagingService.Verb.READ_REPAIR);
-                    repairResults.add(MessagingService.instance().sendRR(msg, sources[i]));
+                    ReadRepairDecision repairDecision = command.metadata().newReadRepairDecision(consistency);
+                    if (repairs[i] != null && repairDecision != ReadRepairDecision.NONE) {
+                        // use a separate verb here because we don't want these to be get the white glove hint-
+                        // on-timeout behavior that a "real" mutation gets
+                        Tracing.trace("Sending read-repair-mutation to {}", sources[i]);
+                        MessageOut<Mutation> msg = new Mutation(repairs[i]).createMessage(MessagingService.Verb.READ_REPAIR);
+                        repairResults.add(MessagingService.instance().sendRR(msg, sources[i]));
+                    }
                 }
             }
         }
@@ -458,7 +459,8 @@ public class DataResolver extends ResponseResolver
             private UnfilteredRowIterator doShortReadRetry(SinglePartitionReadCommand retryCommand)
             {
                 DataResolver resolver = new DataResolver(keyspace, retryCommand, ConsistencyLevel.ONE, 1);
-                ReadCallback handler = new ReadCallback(resolver, ConsistencyLevel.ONE, retryCommand, Collections.singletonList(source));
+                ReadRepairDecision repairDecision = command.metadata().newReadRepairDecision(ConsistencyLevel.ONE);
+                ReadCallback handler = new ReadCallback(resolver, ConsistencyLevel.ONE, retryCommand, Collections.singletonList(source), repairDecision);
                 if (StorageProxy.canDoLocalRequest(source))
                       StageManager.getStage(Stage.READ).maybeExecuteImmediately(new StorageProxy.LocalReadRunnable(retryCommand, handler));
                 else

@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.partitions.PartitionIterator;
 import org.apache.cassandra.exceptions.ReadFailureException;
@@ -56,6 +57,7 @@ public class ReadCallback implements IAsyncCallbackWithFailure<ReadResponse>
     final int blockfor;
     final List<InetAddress> endpoints;
     private final ReadCommand command;
+    private final ReadRepairDecision repairDecision;
     private final ConsistencyLevel consistencyLevel;
     private static final AtomicIntegerFieldUpdater<ReadCallback> recievedUpdater
             = AtomicIntegerFieldUpdater.newUpdater(ReadCallback.class, "received");
@@ -69,17 +71,18 @@ public class ReadCallback implements IAsyncCallbackWithFailure<ReadResponse>
     /**
      * Constructor when response count has to be calculated and blocked for.
      */
-    public ReadCallback(ResponseResolver resolver, ConsistencyLevel consistencyLevel, ReadCommand command, List<InetAddress> filteredEndpoints)
+    public ReadCallback(ResponseResolver resolver, ConsistencyLevel consistencyLevel, ReadCommand command, List<InetAddress> filteredEndpoints, ReadRepairDecision repairDecision)
     {
         this(resolver,
              consistencyLevel,
              consistencyLevel.blockFor(Keyspace.open(command.metadata().ksName)),
              command,
              Keyspace.open(command.metadata().ksName),
-             filteredEndpoints);
+             filteredEndpoints,
+             repairDecision);
     }
 
-    public ReadCallback(ResponseResolver resolver, ConsistencyLevel consistencyLevel, int blockfor, ReadCommand command, Keyspace keyspace, List<InetAddress> endpoints)
+    public ReadCallback(ResponseResolver resolver, ConsistencyLevel consistencyLevel, int blockfor, ReadCommand command, Keyspace keyspace, List<InetAddress> endpoints, ReadRepairDecision repairDecision)
     {
         this.command = command;
         this.keyspace = keyspace;
@@ -88,6 +91,7 @@ public class ReadCallback implements IAsyncCallbackWithFailure<ReadResponse>
         this.resolver = resolver;
         this.start = System.nanoTime();
         this.endpoints = endpoints;
+        this.repairDecision = repairDecision;
         // we don't support read repair (or rapid read protection) for range scans yet (CASSANDRA-6897)
         assert !(command instanceof PartitionRangeReadCommand) || blockfor >= endpoints.size();
 
@@ -158,7 +162,7 @@ public class ReadCallback implements IAsyncCallbackWithFailure<ReadResponse>
             condition.signalAll();
             // kick off a background digest comparison if this is a result that (may have) arrived after
             // the original resolve that get() kicks off as soon as the condition is signaled
-            if (blockfor < endpoints.size() && n == endpoints.size())
+            if (repairDecision != ReadRepairDecision.NONE && blockfor < endpoints.size() && n == endpoints.size())
             {
                 TraceState traceState = Tracing.instance.get();
                 if (traceState != null)

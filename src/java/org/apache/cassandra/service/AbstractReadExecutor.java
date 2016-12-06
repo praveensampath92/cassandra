@@ -63,11 +63,11 @@ public abstract class AbstractReadExecutor
     protected final ReadCallback handler;
     protected final TraceState traceState;
 
-    AbstractReadExecutor(Keyspace keyspace, ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas)
+    AbstractReadExecutor(Keyspace keyspace, ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ReadRepairDecision repairDecision)
     {
         this.command = command;
         this.targetReplicas = targetReplicas;
-        this.handler = new ReadCallback(new DigestResolver(keyspace, command, consistencyLevel, targetReplicas.size()), consistencyLevel, command, targetReplicas);
+        this.handler = new ReadCallback(new DigestResolver(keyspace, command, consistencyLevel, targetReplicas.size()), consistencyLevel, command, targetReplicas, repairDecision);
         this.traceState = Tracing.instance.get();
 
         // Set the digest version (if we request some digests). This is the smallest version amongst all our target replicas since new nodes
@@ -152,10 +152,7 @@ public abstract class AbstractReadExecutor
     {
         Keyspace keyspace = Keyspace.open(command.metadata().ksName);
         List<InetAddress> allReplicas = StorageProxy.getLiveSortedEndpoints(keyspace, command.partitionKey());
-        // 11980: Excluding EACH_QUORUM reads from potential RR, so that we do not miscount DC responses
-        ReadRepairDecision repairDecision = consistencyLevel == ConsistencyLevel.EACH_QUORUM
-                                            ? ReadRepairDecision.NONE
-                                            : command.metadata().newReadRepairDecision();
+        ReadRepairDecision repairDecision = command.metadata().newReadRepairDecision(consistencyLevel);
         List<InetAddress> targetReplicas = consistencyLevel.filterForQuery(keyspace, allReplicas, repairDecision);
 
         // Throw UAE early if we don't have enough replicas.
@@ -175,14 +172,14 @@ public abstract class AbstractReadExecutor
         if (retry.equals(SpeculativeRetryParam.NONE)
             || consistencyLevel == ConsistencyLevel.EACH_QUORUM
             || consistencyLevel.blockFor(keyspace) == allReplicas.size())
-            return new NeverSpeculatingReadExecutor(keyspace, command, consistencyLevel, targetReplicas);
+            return new NeverSpeculatingReadExecutor(keyspace, command, consistencyLevel, targetReplicas, repairDecision);
 
         if (targetReplicas.size() == allReplicas.size())
         {
             // CL.ALL, RRD.GLOBAL or RRD.DC_LOCAL and a single-DC.
             // We are going to contact every node anyway, so ask for 2 full data requests instead of 1, for redundancy
             // (same amount of requests in total, but we turn 1 digest request into a full blown data request).
-            return new AlwaysSpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas);
+            return new AlwaysSpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas, repairDecision);
         }
 
         // RRD.NONE or RRD.DC_LOCAL w/ multiple DCs.
@@ -203,16 +200,16 @@ public abstract class AbstractReadExecutor
         targetReplicas.add(extraReplica);
 
         if (retry.equals(SpeculativeRetryParam.ALWAYS))
-            return new AlwaysSpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas);
+            return new AlwaysSpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas, repairDecision);
         else // PERCENTILE or CUSTOM.
-            return new SpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas);
+            return new SpeculatingReadExecutor(keyspace, cfs, command, consistencyLevel, targetReplicas, repairDecision);
     }
 
     public static class NeverSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        public NeverSpeculatingReadExecutor(Keyspace keyspace, ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas)
+        public NeverSpeculatingReadExecutor(Keyspace keyspace, ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ReadRepairDecision repairDecision)
         {
-            super(keyspace, command, consistencyLevel, targetReplicas);
+            super(keyspace, command, consistencyLevel, targetReplicas, repairDecision);
         }
 
         public void executeAsync()
@@ -242,9 +239,10 @@ public abstract class AbstractReadExecutor
                                        ColumnFamilyStore cfs,
                                        ReadCommand command,
                                        ConsistencyLevel consistencyLevel,
-                                       List<InetAddress> targetReplicas)
+                                       List<InetAddress> targetReplicas,
+                                       ReadRepairDecision repairDecision)
         {
-            super(keyspace, command, consistencyLevel, targetReplicas);
+            super(keyspace, command, consistencyLevel, targetReplicas, repairDecision);
             this.cfs = cfs;
         }
 
@@ -314,9 +312,10 @@ public abstract class AbstractReadExecutor
                                              ColumnFamilyStore cfs,
                                              ReadCommand command,
                                              ConsistencyLevel consistencyLevel,
-                                             List<InetAddress> targetReplicas)
+                                             List<InetAddress> targetReplicas,
+                                             ReadRepairDecision repairDecision)
         {
-            super(keyspace, command, consistencyLevel, targetReplicas);
+            super(keyspace, command, consistencyLevel, targetReplicas, repairDecision);
             this.cfs = cfs;
         }
 

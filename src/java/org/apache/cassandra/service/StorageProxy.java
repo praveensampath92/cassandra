@@ -44,6 +44,7 @@ import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.filter.DataLimits;
@@ -1723,12 +1724,15 @@ public class StorageProxy implements StorageProxyMBean
                 // Do a full data read to resolve the correct response (and repair node that need be)
                 Keyspace keyspace = Keyspace.open(command.metadata().ksName);
                 DataResolver resolver = new DataResolver(keyspace, command, ConsistencyLevel.ALL, executor.handler.endpoints.size());
+
+                ReadRepairDecision repairDecision = command.metadata().newReadRepairDecision(ConsistencyLevel.ALL);
                 repairHandler = new ReadCallback(resolver,
                                                  ConsistencyLevel.ALL,
                                                  executor.getContactedReplicas().size(),
                                                  command,
                                                  keyspace,
-                                                 executor.handler.endpoints);
+                                                 executor.handler.endpoints,
+                                                 repairDecision);
 
                 for (InetAddress endpoint : executor.getContactedReplicas())
                 {
@@ -2091,7 +2095,8 @@ public class StorageProxy implements StorageProxyMBean
             int blockFor = consistency.blockFor(keyspace);
             int minResponses = Math.min(toQuery.filteredEndpoints.size(), blockFor);
             List<InetAddress> minimalEndpoints = toQuery.filteredEndpoints.subList(0, minResponses);
-            ReadCallback handler = new ReadCallback(resolver, consistency, rangeCommand, minimalEndpoints);
+            ReadRepairDecision repairDecision = command.metadata().newReadRepairDecision(consistency);
+            ReadCallback handler = new ReadCallback(resolver, consistency, rangeCommand, minimalEndpoints, repairDecision);
 
             handler.assureSufficientLiveNodes();
 
