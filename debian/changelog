@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-3.0) unstable; urgency=medium
+
+  * Bug fixes
+
+ -- Jon Derryberry <jon.derryberry@scale-data.com>  Mon, 05 Dec 2016 18:31:56 -0800
 cassandra (3.0.9-rubrik-2.0) unstable; urgency=medium
 
   * Bug fixes
