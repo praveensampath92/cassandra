@@ -109,7 +109,8 @@ public class CommitLogTest
         CompactionManager.instance.disableAutoCompaction();
     }
 
-    @Test
+    // Commenting out because we ignore this exception as of 5acd5f9 Handle empty commit logs; D16796
+    // @Test
     public void testRecoveryWithEmptyLog() throws Exception
     {
         runExpecting(() -> {

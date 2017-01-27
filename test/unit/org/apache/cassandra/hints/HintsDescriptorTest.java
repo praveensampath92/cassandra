@@ -106,7 +106,8 @@ public class HintsDescriptorTest
             try (HintsWriter ignored = HintsWriter.create(directory, expected))
             {
             }
-            HintsDescriptor actual = HintsDescriptor.readFromFile(new File(directory, expected.fileName()).toPath());
+            HintsDescriptor actual =
+                HintsDescriptor.readFromFile(new File(directory, expected.fileName()).toPath()).findFirst().get();
             assertEquals(expected, actual);
         }
         finally

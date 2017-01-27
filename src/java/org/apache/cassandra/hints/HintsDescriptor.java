@@ -22,14 +22,22 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.ParameterizedClass;
 import org.apache.cassandra.db.TypeSizes;
@@ -50,6 +58,8 @@ import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
  */
 final class HintsDescriptor
 {
+    private static final Logger logger = LoggerFactory.getLogger(HintsDispatchExecutor.class);
+
     static final int VERSION_30 = 1;
     static final int CURRENT_VERSION = VERSION_30;
 
@@ -131,15 +141,34 @@ final class HintsDescriptor
         return pattern.matcher(path.getFileName().toString()).matches();
     }
 
-    static HintsDescriptor readFromFile(Path path)
+    static Stream<HintsDescriptor> readFromFile(Path path)
     {
         try (RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r"))
         {
-            return deserialize(raf);
+            return Stream.of(deserialize(raf));
         }
         catch (IOException e)
         {
-            throw new FSReadError(e, path.toFile());
+            logger.error(
+                "Caught exception while reading header information from hints file."
+                    + " Will delete the offending hints and crc file if any."
+                    + " path: " + path,
+                e
+            );
+            boolean success = path.toFile().delete();
+            logger.info("Result of hints file deletion. path: " + path + " success: " + success);
+            String pathStr = path.toString();
+            if (pathStr.endsWith(".hints")) {
+                Path crcPath = Paths.get(pathStr.substring(0, pathStr.length() - 6) + ".crc32");
+                logger.info(
+                    "Attempting to remove crc file for hints file. hintsPath: " + path + "crcPath: " + crcPath
+                );
+                boolean successCrc = crcPath.toFile().delete();
+                logger.info(
+                    "Result of crc file deletion. " + "crcPath: " + crcPath + " successCrc: " + successCrc
+                );
+            }
+            return Stream.empty();
         }
     }
 
