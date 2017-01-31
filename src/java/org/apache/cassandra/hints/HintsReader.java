@@ -51,6 +51,12 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
 {
     private static final Logger logger = LoggerFactory.getLogger(HintsReader.class);
 
+    public static class DigestMismatchException extends IOException {
+        DigestMismatchException() {
+            super();
+        }
+    }
+
     // don't read more than 512 KB of hints at a time.
     private static final int PAGE_SIZE = 512 << 10;
 
@@ -209,7 +215,7 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
 
             // if we cannot corroborate the size via crc, then we cannot safely skip this hint
             if (!input.checkCrc())
-                throw new IOException("Digest mismatch exception");
+                throw new DigestMismatchException();
 
             return readHint(size);
         }
@@ -302,7 +308,7 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
 
             // if we cannot corroborate the size via crc, then we cannot safely skip this hint
             if (!input.checkCrc())
-                throw new IOException("Digest mismatch exception");
+                throw new DigestMismatchException();
 
             return readBuffer(size);
         }

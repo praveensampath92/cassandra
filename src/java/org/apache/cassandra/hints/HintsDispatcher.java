@@ -20,15 +20,21 @@ package org.apache.cassandra.hints;
 import java.io.File;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import com.google.common.util.concurrent.RateLimiter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.gms.FailureDetector;
+import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.net.IAsyncCallbackWithFailure;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
@@ -42,6 +48,8 @@ import org.apache.cassandra.utils.concurrent.SimpleCondition;
  */
 final class HintsDispatcher implements AutoCloseable
 {
+    private static final Logger logger = LoggerFactory.getLogger(HintsDispatcher.class);
+
     private enum Action { CONTINUE, ABORT, RETRY }
 
     private final HintsReader reader;
@@ -83,15 +91,25 @@ final class HintsDispatcher implements AutoCloseable
     /**
      * @return whether or not dispatch completed entirely and successfully
      */
-    boolean dispatch()
+    boolean dispatch(HintsDescriptor descriptor)
     {
-        for (HintsReader.Page page : reader)
+        try
         {
-            currentPageOffset = page.offset;
-            if (dispatch(page) != Action.CONTINUE)
-                return false;
+            for (HintsReader.Page page : reader)
+            {
+                currentPageOffset = page.offset;
+                if (dispatch(page) != Action.CONTINUE)
+                    return false;
+            }
+        } catch (FSReadError e) {
+            logger.error(
+                "Caught FSReadError."
+                    + " descriptor: " + descriptor
+                    + " fileName: " + descriptor.fileName()
+                    + " currentPageOffset: " + currentPageOffset
+            );
+            throw e;
         }
-
         return true;
     }
 
