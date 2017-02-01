@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-2.1) unstable; urgency=medium
+
+  * Bug fixes
+
+ -- Jon Derryberry <jon.derryberry@rubrik.com>  Tue, 31 Jan 2017 11:15:33 -0800
 cassandra (3.0.9-rubrik-2.0) unstable; urgency=medium
 
   * Bug fixes
