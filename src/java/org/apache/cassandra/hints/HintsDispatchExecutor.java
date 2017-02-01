@@ -258,24 +258,16 @@ final class HintsDispatchExecutor
 
                 boolean finishedWithFile = false;
                 try {
-                    finishedWithFile = dispatcher.dispatch(descriptor);
+                    finishedWithFile = dispatcher.dispatch();
                 } catch (FSReadError e) {
-                    if (e.getCause() instanceof HintsReader.DigestMismatchException)
-                    {
-                        logger.error(
-                            "Caught digest mismatch exception processing a page from a hints file. "
-                                + "Will skip remaining hints for this file and delete this hints file. "
-                                + "descriptor: " + descriptor
-                                + "fileName: " + descriptor.fileName(),
-                            e
-                        );
-                        finishedWithFile = true;
-                    } else {
-                        logger.error(
-                            "Caught FSReadError with a cause other than DigestMismatchException. cause: " + e.getCause()
-                        );
-                        throw e;
-                    }
+                    logger.error(
+                        "Caught FSReadError while processing a page from a hints file. "
+                            + "Will skip remaining hints for this file and delete this hints file. "
+                            + "descriptor: " + descriptor
+                            + "fileName: " + descriptor.fileName(),
+                        e
+                    );
+                    finishedWithFile = true;
                 }
                 if (finishedWithFile)
                 {
