@@ -238,14 +238,14 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         Tracing.traceRepair("Syncing range {}", ranges);
         SystemDistributedKeyspace.startRepairs(getId(), parentRepairSession, keyspace, cfnames, ranges, endpoints);
 
-        if (endpoints.isEmpty())
-        {
-            logger.info("[repair #{}] {}", getId(), message = String.format("No neighbors to repair with on range %s: session completed", ranges));
-            Tracing.traceRepair(message);
-            set(new RepairSessionResult(id, keyspace, ranges, Lists.<RepairResult>newArrayList()));
-            SystemDistributedKeyspace.failRepairs(getId(), keyspace, cfnames, new RuntimeException(message));
-            return;
-        }
+//        if (endpoints.isEmpty())
+//        {
+//            logger.info("[repair #{}] {}", getId(), message = String.format("No neighbors to repair with on range %s: session completed", ranges));
+//            Tracing.traceRepair(message);
+//            set(new RepairSessionResult(id, keyspace, ranges, Lists.<RepairResult>newArrayList()));
+//            SystemDistributedKeyspace.failRepairs(getId(), keyspace, cfnames, new RuntimeException(message));
+//            return;
+//        }
 
         // Checking all nodes are live
         for (InetAddress endpoint : endpoints)

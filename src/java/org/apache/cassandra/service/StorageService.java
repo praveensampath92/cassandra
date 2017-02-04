@@ -3190,7 +3190,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public int forceRepairAsync(String keyspace, RepairOption options, boolean legacy)
     {
-        if (options.getRanges().isEmpty() || Keyspace.open(keyspace).getReplicationStrategy().getReplicationFactor() < 2)
+        if (options.getRanges().isEmpty())
             return 0;
 
         int cmd = nextRepairCommand.incrementAndGet();

@@ -135,8 +135,8 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
                                              ListeningExecutorService executor,
                                              String... cfnames)
     {
-        if (endpoints.isEmpty())
-            return null;
+//        if (endpoints.isEmpty())
+//            return null;
 
         if (cfnames.length == 0)
             return null;
