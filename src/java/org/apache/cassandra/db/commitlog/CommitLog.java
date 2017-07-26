@@ -272,9 +272,12 @@ public class CommitLog implements CommitLogMBean
             updateChecksum(checksum, buffer, buffer.position() - size, size);
             buffer.putInt((int) checksum.getValue());
         }
-        catch (IOException e)
+        catch (Throwable e)
         {
-            throw new FSWriteError(e, alloc.getSegment().getPath());
+            logger.error(
+                "Encountered an error while adding mutation to commit log. Exiting.",
+                e);
+            System.exit(1);
         }
         finally
         {
