@@ -367,6 +367,18 @@ public class CommitLogReplayer
                 // false.
                 return false;
               }
+
+              // The CommitLogSegmentManager performs a sync on clean shutdown.
+              // In such cases, the extra preallocated segment will have an
+              // extra sync marker after the header. The sync section itself
+              // will be empty. If this is the case, we expect all bytes after
+              // this to be zero. On unclean shutdown, we do not expect the
+              // extra sync marker.
+              int curPos = (int) reader.getFilePointer();
+              int nextPos = readSyncMarker(desc, curPos, reader);
+              if (nextPos != curPos + CommitLogSegment.SYNC_MARKER_SIZE) {
+                reader.seek(curPos);
+              }
             }
 
             while (reader.getFilePointer() < reader.length())
@@ -410,7 +422,8 @@ public class CommitLogReplayer
         }
 
         // Ignore commitlogs where everything except the header is all zeroes.
-        // This could occur while processing preallocated commitlog segments.
+        // We allow one more sync section after the header, if it is empty.
+        // This occurs while processing preallocated commitlog segments.
         if (isFileZeroedSafe(file, reader, /*headerShouldBeZeroed=*/false)) {
           return true;
         }
