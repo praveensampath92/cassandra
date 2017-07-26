@@ -141,8 +141,30 @@ public class CommitLogReplayer
     public void recover(File[] clogs) throws IOException
     {
         int i;
-        for (i = 0; i < clogs.length; ++i)
-            recover(clogs[i], i + 1 == clogs.length);
+        int lastReplayIndex = clogs.length - 1;
+        // Starting from the end, skip all commitlogs which will not contribute
+        // to replay because they are empty. This is needed because we ignore
+        // certain errors on replay only on the last commitlog.
+        while (lastReplayIndex >= 0) {
+          File file = clogs[lastReplayIndex];
+          CommitLogDescriptor desc =
+            CommitLogDescriptor.fromFileName(file.getName());
+          try(ChannelProxy channel = new ChannelProxy(file);
+              RandomAccessReader reader = RandomAccessReader.open(channel))
+          {
+            if (shouldSkipFileForReplay(file, reader)) {
+              logger.info(
+                  "Skipping commit log file {} for replay",
+                  file.getAbsolutePath());
+              lastReplayIndex -= 1;
+            } else {
+              break;
+            }
+          }
+        }
+
+        for (i = 0; i <= lastReplayIndex; ++i)
+            recover(clogs[i], i == lastReplayIndex);
     }
 
     /**
@@ -328,10 +350,25 @@ public class CommitLogReplayer
         return !cfPersisted.get(cfId).contains(position);
     }
 
-    private boolean isFileEmpty(RandomAccessReader reader) {
+    private boolean isFileZeroedSafe(
+        File file,
+        RandomAccessReader reader,
+        boolean headerShouldBeZeroed)
+    {
+        CommitLogDescriptor desc = null;
+
         long currentOffset = reader.getFilePointer();
         reader.seek(0);
         try {
+            if (!headerShouldBeZeroed) {
+              desc = CommitLogDescriptor.readHeader(reader);
+              if (desc == null) {
+                // Checksum mismatch, we do not expect this to happen so return
+                // false.
+                return false;
+              }
+            }
+
             while (reader.getFilePointer() < reader.length())
             {
                 byte nextByte = reader.readByte();
@@ -340,12 +377,45 @@ public class CommitLogReplayer
                     return false;
                 }
             }
-        } catch (IOException e) {
+
+        } catch (Throwable e) {
+            // Unexpected, return false to be safe.
             return false;
         } finally {
             reader.seek(currentOffset);
         }
+
+        if (headerShouldBeZeroed) {
+          logger.info(
+              "Should skip replay of the following file which appears to be " +
+                "an empty commit log: {}",
+              file.getAbsolutePath());
+        } else {
+          logger.info(
+              "Should skip replay of the following file which appears to be " +
+                "an empty pre allocated commit log: {}",
+              file.getAbsolutePath());
+        }
         return true;
+    }
+
+    private boolean shouldSkipFileForReplay(
+        File file,
+        RandomAccessReader reader)
+    {
+        // Ignore commitlogs which are all zeroes, which implies that the
+        // header is also all zeroes.
+        if (isFileZeroedSafe(file, reader, /*headerShouldBeZeroed=*/true)) {
+          return true;
+        }
+
+        // Ignore commitlogs where everything except the header is all zeroes.
+        // This could occur while processing preallocated commitlog segments.
+        if (isFileZeroedSafe(file, reader, /*headerShouldBeZeroed=*/false)) {
+          return true;
+        }
+
+        return false;
     }
 
     @SuppressWarnings("resource")
@@ -365,11 +435,6 @@ public class CommitLogReplayer
                 return;
             }
 
-
-            if (isFileEmpty(reader)) {
-                logger.info("Skipping empty logfile {}", file.getAbsolutePath());
-                return;
-            }
 
             final long segmentId = desc.id;
             try
