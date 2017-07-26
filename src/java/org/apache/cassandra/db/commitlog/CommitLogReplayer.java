@@ -292,7 +292,7 @@ public class CommitLogReplayer
         return replayedCount.get();
     }
 
-    private int readSyncMarker(CommitLogDescriptor descriptor, int offset, RandomAccessReader reader, boolean tolerateTruncation) throws IOException
+    private int readSyncMarker(CommitLogDescriptor descriptor, int offset, RandomAccessReader reader) throws IOException
     {
         if (offset > reader.length() - CommitLogSegment.SYNC_MARKER_SIZE)
         {
@@ -319,7 +319,10 @@ public class CommitLogReplayer
         }
         else if (end < offset || end > reader.length())
         {
-            handleReplayError(tolerateTruncation, "Encountered bad header at position %d of commit log %s, with bad position but valid CRC",
+            // This should be an error, not clear how this can happen if
+            // the commit log segments are preallocated.
+            handleReplayError(false,
+                              "Encountered bad header at position %d of commit log %s, with bad position but valid CRC",
                               offset, reader.getPath());
             return -1;
         }
@@ -551,7 +554,7 @@ public class CommitLogReplayer
             int end = (int) reader.getFilePointer();
             int replayEnd = end;
 
-            while ((end = readSyncMarker(desc, end, reader, tolerateTruncation)) >= 0)
+            while ((end = readSyncMarker(desc, end, reader)) >= 0)
             {
                 int replayPos = replayEnd + CommitLogSegment.SYNC_MARKER_SIZE;
 
@@ -573,7 +576,6 @@ public class CommitLogReplayer
 
                 FileDataInput sectionReader = reader;
                 String errorContext = desc.fileName();
-                // In the uncompressed case the last non-fully-flushed section can be anywhere in the file.
                 boolean tolerateErrorsInSection = tolerateTruncation;
                 if (compressor != null)
                 {
@@ -606,6 +608,16 @@ public class CommitLogReplayer
                                           start, e);
                         continue;
                     }
+                } else {
+                  // In the uncompressed case, we ignore errors only in the
+                  // last sync section.
+                  long currentOffset = reader.getFilePointer();
+                  int nextSyncMarker = readSyncMarker(desc, end, reader);
+                  reader.seek(currentOffset);
+
+                  if (nextSyncMarker != -1) {
+                    tolerateErrorsInSection = false;
+                  }
                 }
 
                 if (!replaySyncSection(sectionReader, replayEnd, desc, errorContext, tolerateErrorsInSection))
