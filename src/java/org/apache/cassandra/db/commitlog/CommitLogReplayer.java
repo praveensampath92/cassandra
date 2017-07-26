@@ -138,33 +138,95 @@ public class CommitLogReplayer
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
-    public void recover(File[] clogs) throws IOException
-    {
+    private List<List<File>> getRunsBasedOnTimestamp(File[] clogsArr) {
+        List<List<File>> runs = new ArrayList<List<File>>();
+        List<File> clogs = Arrays.asList(clogsArr);
+
+        int runStartIndex = 0;
+        for (int i = 0; i < clogs.size(); i++) {
+            File currentFile = clogs.get(i);
+
+            CommitLogDescriptor currentDescriptor =
+              CommitLogDescriptor.fromFileName(currentFile.getName());
+
+            boolean lastFileInRun = false;
+            if (i + 1 < clogs.size()) {
+              File nextFile = clogs.get(i+1);
+              CommitLogDescriptor nextDescriptor =
+                CommitLogDescriptor.fromFileName(nextFile.getName());
+              if (nextDescriptor.id != currentDescriptor.id + 1) {
+                lastFileInRun = true;
+              }
+            } else {
+              lastFileInRun = true;
+            }
+
+            if (lastFileInRun) {
+                runs.add(clogs.subList(runStartIndex, i + 1));
+                runStartIndex = i + 1;
+            }
+        }
+        return runs;
+    }
+
+    private void recoverRun(
+        List<File> clogs,
+        int runIndex
+    ) throws IOException {
+        assert clogs.size() >= 1;
+        logger.info("Processing run: {} with index {}", clogs, runIndex);
+
         int i;
-        int lastReplayIndex = clogs.length - 1;
+        int lastReplayIndex = clogs.size() - 1;
         // Starting from the end, skip all commitlogs which will not contribute
         // to replay because they are empty. This is needed because we ignore
         // certain errors on replay only on the last commitlog.
         while (lastReplayIndex >= 0) {
-          File file = clogs[lastReplayIndex];
-          CommitLogDescriptor desc =
-            CommitLogDescriptor.fromFileName(file.getName());
-          try(ChannelProxy channel = new ChannelProxy(file);
-              RandomAccessReader reader = RandomAccessReader.open(channel))
-          {
-            if (shouldSkipFileForReplay(file, reader)) {
-              logger.info(
-                  "Skipping commit log file {} for replay",
-                  file.getAbsolutePath());
-              lastReplayIndex -= 1;
-            } else {
-              break;
+            File file = clogs.get(lastReplayIndex);
+            CommitLogDescriptor desc =
+                CommitLogDescriptor.fromFileName(file.getName());
+            try(ChannelProxy channel = new ChannelProxy(file);
+                RandomAccessReader reader = RandomAccessReader.open(channel))
+            {
+                if (shouldSkipFileForReplay(file, reader)) {
+                    logger.info(
+                        "Skipping commit log file {} for replay",
+                        file.getAbsolutePath());
+                    lastReplayIndex -= 1;
+                } else {
+                    break;
+                }
             }
-          }
         }
 
-        for (i = 0; i <= lastReplayIndex; ++i)
-            recover(clogs[i], i == lastReplayIndex);
+        for (i = 0; i <= lastReplayIndex; ++i) {
+            recover(clogs.get(i), (runIndex == 0) && (i == lastReplayIndex));
+        }
+    }
+
+    public void recover(File[] clogs) throws IOException
+    {
+        // When commitlog replay fails, we have noticed that Cassandra
+        // creates additional commitlog files. The mutations in these files
+        // appear to be from the system keyspace, and related to table indices.
+        // In the version of Cassandra we use, Cassandra increments commitlog
+        // descriptor ids while Cassandra is up, using the current timestamp
+        // as the base id. Thus, we can detect runs of commitlog segments
+        // created across Cassandra restarts. The behaviour here is to
+        // split commitlogs into runs based on timestamp. We can
+        // tolerate mutation checksum errors for the highest numbered file in
+        // each run (ignoring the suffix of "empty" commitlogs in the run),
+        // since this is the one that whose last sync section could
+        // potentially not have been flushed to disk. To err on the side of
+        // caution, we are intentionally not ignoring errors for any run
+        // except the first, even though it might be ok to do so.
+        List<List<File>> runs = getRunsBasedOnTimestamp(clogs);
+        logger.info("Found the following runs in commitlogs: {}", runs);
+
+        int i;
+        for (i = 0; i < runs.size(); i++) {
+            recoverRun(runs.get(i), i);
+        }
     }
 
     /**
