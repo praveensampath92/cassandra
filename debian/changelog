@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-7.0) unstable; urgency=medium
+
+  * Bug fixes around commitlog corruption
+
+ -- Arijit Banerjee <arijit@rubrik.com>  Fri, 11 Aug 2017 13:25:10 -0800
 cassandra (3.0.9-rubrik-6.0) unstable; urgency=medium
 
   * Bug fixes around commitlog corruption

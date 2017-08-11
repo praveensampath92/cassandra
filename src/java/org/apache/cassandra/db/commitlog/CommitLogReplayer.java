@@ -200,7 +200,7 @@ public class CommitLogReplayer
         }
 
         for (i = 0; i <= lastReplayIndex; ++i) {
-            recover(clogs.get(i), (runIndex == 0) && (i == lastReplayIndex));
+            recover(clogs.get(i), i == lastReplayIndex);
         }
     }
 
