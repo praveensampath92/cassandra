@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-8.0) unstable; urgency=medium
+
+  * Remove dependency on vulnerable netty version
+
+ -- Jon Derryberry <jon.derryberry@rubrik.com>  Tue, 03 Oct 2017 18:32:00 -0800
 cassandra (3.0.9-rubrik-7.0) unstable; urgency=medium
 
   * Bug fixes around commitlog corruption
