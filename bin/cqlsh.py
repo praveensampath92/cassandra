@@ -760,7 +760,7 @@ class Shell(cmd.Cmd):
 
         self.session.default_timeout = request_timeout
         self.session.row_factory = ordered_dict_factory
-        self.session.default_consistency_level = cassandra.ConsistencyLevel.ONE
+        self.session.default_consistency_level = cassandra.ConsistencyLevel.LOCAL_QUORUM
         self.get_connection_versions()
 
         self.current_keyspace = keyspace
@@ -794,7 +794,7 @@ class Shell(cmd.Cmd):
             self.show_line_nums = True
         self.stdin = stdin
         self.query_out = sys.stdout
-        self.consistency_level = cassandra.ConsistencyLevel.ONE
+        self.consistency_level = cassandra.ConsistencyLevel.LOCAL_QUORUM
         self.serial_consistency_level = cassandra.ConsistencyLevel.SERIAL
 
         self.empty_lines = 0
