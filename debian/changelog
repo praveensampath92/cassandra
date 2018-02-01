@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-10.0) unstable; urgency=medium
+
+  * Avoid sstable corrupt exception due to dropped static column
+
+ -- Jon Derryberry <jon.derryberry@rubrik.com>  Wed, 31 Jan 2018 17:24:00 -0800
 cassandra (3.0.9-rubrik-9.0) unstable; urgency=medium
 
   * Revert: Remove dependency on vulnerable netty version
