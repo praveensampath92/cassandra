@@ -172,7 +172,6 @@ from cqlshlib.tracing import print_trace, print_trace_session
 from cqlshlib.util import get_file_encoding_bomsize, trim_if_present
 
 DEFAULT_HOST = '127.0.0.1'
-DEFAULT_PORT = 9042
 DEFAULT_CQLVER = '3.4.0'
 DEFAULT_PROTOCOL_VERSION = 4
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 5
@@ -185,6 +184,15 @@ if readline is not None and readline.__doc__ is not None and 'libedit' in readli
     DEFAULT_COMPLETEKEY = '\t'
 else:
     DEFAULT_COMPLETEKEY = 'tab'
+
+CASS_PORT = 9042
+CQLPROXY_PORT = 27577
+CQLPROXY_ENABLED_FILE = '/var/lib/rubrik/cqlproxy_enabled'
+
+if os.path.isfile(CQLPROXY_ENABLED_FILE):
+    DEFAULT_PORT = CQLPROXY_PORT
+else:
+    DEFAULT_PORT = CASS_PORT
 
 cqldocs = None
 cqlruleset = None
@@ -2481,7 +2489,7 @@ def read_options(cmdlineargs, environment):
     (options, arguments) = parser.parse_args(cmdlineargs, values=optvalues)
 
     hostname = option_with_default(configs.get, 'connection', 'hostname', DEFAULT_HOST)
-    port = option_with_default(configs.get, 'connection', 'port', DEFAULT_PORT)
+    port = option_with_default(configs.get, 'connection', 'port', default=DEFAULT_PORT)
 
     try:
         options.connect_timeout = int(options.connect_timeout)
