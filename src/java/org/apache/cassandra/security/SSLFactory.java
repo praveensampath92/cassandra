@@ -53,7 +53,7 @@ import com.google.common.collect.Sets;
 public final class SSLFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
-    public static final String[] ACCEPTED_PROTOCOLS = new String[] {"SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+    public static final String[] ACCEPTED_PROTOCOLS = new String[] {"TLSv1.1", "TLSv1.2"};
     private static boolean checkedExpiry = false;
 
     public static SSLServerSocket getServerSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
