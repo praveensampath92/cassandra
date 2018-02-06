@@ -1,3 +1,9 @@
+cassandra (3.0.9-rubrik-11.0) unstable; urgency=medium
+
+  * Restrict TLS version in Cassandra
+  * Connect to cqlproxy in cqlsh based on indicator file
+
+ -- Garvit Juniwal <garvit.juniwal@rubrik.com>  Tue, 6 Feb 2018 02:16:15 -0800
 cassandra (3.0.9-rubrik-10.0) unstable; urgency=medium
 
   * Avoid sstable corrupt exception due to dropped static column
