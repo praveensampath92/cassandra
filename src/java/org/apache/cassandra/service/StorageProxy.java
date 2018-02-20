@@ -77,6 +77,11 @@ import static com.google.common.collect.Iterables.contains;
 
 public class StorageProxy implements StorageProxyMBean
 {
+    // Reverts behavior to that of ordinary 3.0.9, which allows cas hints to grow unbounded
+    // Can be set in production by modifying /etc/cassandra/cassandra-env.sh to have a line like the following:
+    // JVM_OPTS="$JVM_OPTS -Dcassandra.storageproxy.allowunboundedcashints=true"
+    private static final Boolean ALLOW_UNBOUNDED_CAS_HINTS =
+        Boolean.getBoolean("cassandra.storageproxy.allowunboundedcashints");
     public static final String MBEAN_NAME = "org.apache.cassandra.db:type=StorageProxy";
     private static final Logger logger = LoggerFactory.getLogger(StorageProxy.class);
 
@@ -2614,13 +2619,13 @@ public class StorageProxy implements StorageProxyMBean
                 for (InetAddress target : targets)
                 {
                     UUID hostId = StorageService.instance.getHostIdForEndpoint(target);
-                    if (hostId != null)
+                    if (hostId != null && (ALLOW_UNBOUNDED_CAS_HINTS || shouldHint(target)))
                     {
                         hostIds.add(hostId);
                         validTargets.add(target);
                     }
                     else
-                        logger.debug("Discarding hint for endpoint not part of ring: {}", target);
+                        logger.debug("Discarding hint for endpoint: {}", target);
                 }
                 logger.trace("Adding hints for {}", validTargets);
                 HintsService.instance.write(hostIds, Hint.create(mutation, System.currentTimeMillis()));
