@@ -693,6 +693,20 @@ public class CassandraDaemon
 
     public static void main(String[] args)
     {
+        String user = System.getProperty("user.name");
+        if (!"cassandra".equals(user)) {
+            logger.error(
+                "Did you try to start (or stop or restart) cassandra using 'cassandra service start'?"
+                    + " If so, this is not the correct command."
+                    + " The correct command is 'service cassandra start' (note that 'service' is the first word)."
+                    + " We detected this error because the username supplied to cassandra was unexpected."
+                    + " Don't worry, we will exit this process right now to prevent anything bad from happening."
+                    + " FYI, this is the username that was supplied, but you shouldn't just set the user to this"
+                    + " and re-run the same command because this could start a second instance of cassandra"
+                    + " on the same node: " + user
+            );
+            System.exit(-1);
+        }
         instance.activate();
     }
 

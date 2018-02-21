@@ -65,6 +65,24 @@
 # POSIX sh and Solaris sh. This means, in particular, no $(( )) and no $( ).
 
 # If an include wasn't specified in the environment, then search for one...
+if [ "$#" -eq 0 ]
+then
+  echo "Expected to receive arguments to cassandra, but didn't receive any. Are you running via 'service cassandra <cmd>'?"
+  exit 1
+fi
+if [ "$1" != "-p" ]
+then
+  echo "Received unexpected first argument. Are you sure you ran 'service cassandra <cmd>' and not 'cassandra service <cmd>'?"
+  exit 1
+fi
+CURR_USER=`whoami`
+if [ "$CURR_USER" != "cassandra" ]
+then
+  echo "Will exit because the wrong user was supplied. The user needs to be cassandra or bad things will happen. Also, please"\
+   "\nbe careful to only start cassandra using 'service cassandra <cmd>' (note the ordering of the words). FYI, this is the"\
+   "\nuser that was supplied, but please be careful that you are running cassandra via the aforementioned service command rather than starting it directly:" $CURR_USER
+  exit 1
+fi
 if [ "x$CASSANDRA_INCLUDE" = "x" ]; then
     # Locations (in order) to use when searching for an include file.
     for include in "`dirname "$0"`/cassandra.in.sh" \
