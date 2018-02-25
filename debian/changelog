@@ -1,3 +1,9 @@
+cassandra (3.0.9-rubrik-12.0) unstable; urgency=medium
+
+  * Respect hint window for cas operations
+  * Add more safeguards to prevent incorrect cassandra start commands
+
+ -- Jon Derryberry <jon.derryberry@rubrik.com>  Sun, 25 Feb 2018 12:09:46 -0800
 cassandra (3.0.9-rubrik-11.0) unstable; urgency=medium
 
   * Restrict TLS version in Cassandra
