@@ -187,7 +187,7 @@ else:
 
 CASS_PORT = 9042
 CQLPROXY_PORT = 27577
-CQLPROXY_ENABLED_FILE = '/var/lib/rubrik/cqlproxy_enabled'
+CQLPROXY_ENABLED_FILE = '/var/lib/rubrik/flags/cqlproxy_enabled'
 
 if os.path.isfile(CQLPROXY_ENABLED_FILE):
     DEFAULT_PORT = CQLPROXY_PORT
