@@ -428,9 +428,27 @@ public class CommitLogReplayer
             if (!headerShouldBeZeroed) {
               desc = CommitLogDescriptor.readHeader(reader);
               if (desc == null) {
-                // Checksum mismatch, we do not expect this to happen so return
-                // false.
-                return false;
+                // Checksum mismatch, we do not expect this to happen. However,
+                // this is ok if there is are no mutations the commitlog
+                // except for this header. We treat such commitlogs as empty
+                // preallocated commitlogs.
+                logger.info(
+                    "Checksum mismatch while reading commit log header: {}",
+                    file.getAbsolutePath());
+                while (reader.getFilePointer() < reader.length())
+                {
+                    byte nextByte = reader.readByte();
+                    if (nextByte != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                logger.info(
+                    "Should skip replay of the following file which appears " +
+                        "to be an empty commit log with an invalid header: {}",
+                    file.getAbsolutePath());
+                return true;
               }
 
               // The CommitLogSegmentManager performs a sync on clean shutdown.
