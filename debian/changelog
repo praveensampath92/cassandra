@@ -1,3 +1,9 @@
+cassandra (3.0.9-rubrik-15.0) unstable; urgency=medium
+
+  * Fix for hasNext errors
+  * Add option to log per query memory usage
+
+ -- Arijit Banerjee <arijit@rubrik.com>  Sun, 24 Jun 2018 14:23:32 -0800
 cassandra (3.0.9-rubrik-14.0) unstable; urgency=medium
 
   * Commitlog corruption bug fix
