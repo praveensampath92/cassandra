@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-16.0) unstable; urgency=medium
+
+  * Stop logging query response in TRACE log
+
+ -- Arijit Banerjee <arijit@rubrik.com>  Thu, 28 Jun 2018 02:51:32 -0800
 cassandra (3.0.9-rubrik-15.0) unstable; urgency=medium
 
   * Fix for hasNext errors
