@@ -33,6 +33,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.sun.management.ThreadMXBean;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,11 +64,11 @@ import org.apache.cassandra.io.util.DataOutputBuffer;
 import org.apache.cassandra.locator.*;
 import org.apache.cassandra.metrics.*;
 import org.apache.cassandra.net.*;
+import org.apache.cassandra.net.MessagingService.Verb;
 import org.apache.cassandra.service.paxos.Commit;
 import org.apache.cassandra.service.paxos.PaxosState;
 import org.apache.cassandra.service.paxos.PrepareCallback;
 import org.apache.cassandra.service.paxos.ProposeCallback;
-import org.apache.cassandra.net.MessagingService.Verb;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.triggers.TriggerExecutor;
 import org.apache.cassandra.utils.*;
@@ -82,6 +83,11 @@ public class StorageProxy implements StorageProxyMBean
     // JVM_OPTS="$JVM_OPTS -Dcassandra.storageproxy.allowunboundedcashints=true"
     private static final Boolean ALLOW_UNBOUNDED_CAS_HINTS =
         Boolean.getBoolean("cassandra.storageproxy.allowunboundedcashints");
+
+    // Log per query memory usage.
+    private static final Boolean LOG_PER_QUERY_MEMORY_USAGE =
+        Boolean.getBoolean("cassandra.storageproxy.logmemusage");
+
     public static final String MBEAN_NAME = "org.apache.cassandra.db:type=StorageProxy";
     private static final Logger logger = LoggerFactory.getLogger(StorageProxy.class);
 
@@ -1798,6 +1804,14 @@ public class StorageProxy implements StorageProxyMBean
 
         protected void runMayThrow()
         {
+            long beginAllocation = 0;
+            long endAllocation = 0;
+
+            if (LOG_PER_QUERY_MEMORY_USAGE) {
+                ThreadMXBean tBean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+                beginAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+            }
+
             try
             {
                 try (ReadOrderGroup orderGroup = command.startOrderGroup(); UnfilteredPartitionIterator iterator = command.executeLocally(orderGroup))
@@ -1813,6 +1827,12 @@ public class StorageProxy implements StorageProxyMBean
                     logger.error(t.getMessage());
                 else
                     throw t;
+            }
+
+            if (LOG_PER_QUERY_MEMORY_USAGE) {
+                ThreadMXBean tBean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+                endAllocation = tBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+                logger.info("Command: {}, Bytes used: {}", command, endAllocation - beginAllocation);
             }
         }
     }
