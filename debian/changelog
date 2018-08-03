@@ -1,3 +1,8 @@
+cassandra (3.0.9-rubrik-17.0) unstable; urgency=medium
+
+  * Make logs less verbose
+
+ -- Garvit Juniwal <garvit.juniwal@rubrik.com>  Thu, 2 Aug 2018 02:51:32 -0800
 cassandra (3.0.9-rubrik-16.0) unstable; urgency=medium
 
   * Stop logging query response in TRACE log

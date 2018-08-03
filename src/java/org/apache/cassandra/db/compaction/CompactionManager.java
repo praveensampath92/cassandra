@@ -537,7 +537,7 @@ public class CompactionManager implements CompactionManagerMBean
                 {
                     if (r.contains(sstableRange))
                     {
-                        logger.info("SSTable {} fully contained in range {}, mutating repairedAt instead of anticompacting", sstable, r);
+                        logger.trace("SSTable {} fully contained in range {}, mutating repairedAt instead of anticompacting", sstable, r);
                         sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, repairedAt);
                         sstable.reloadSSTableMetadata();
                         mutatedRepairStatuses.add(sstable);
@@ -549,14 +549,14 @@ public class CompactionManager implements CompactionManagerMBean
                     }
                     else if (sstableRange.intersects(r))
                     {
-                        logger.info("SSTable {} ({}) will be anticompacted on range {}", sstable, sstableRange, r);
+                        logger.trace("SSTable {} ({}) will be anticompacted on range {}", sstable, sstableRange, r);
                         shouldAnticompact = true;
                     }
                 }
 
                 if (!shouldAnticompact)
                 {
-                    logger.info("SSTable {} ({}) does not intersect repaired ranges {}, not touching repairedAt.", sstable, sstableRange, normalizedRanges);
+                    logger.trace("SSTable {} ({}) does not intersect repaired ranges {}, not touching repairedAt.", sstable, sstableRange, normalizedRanges);
                     nonAnticompacting.add(sstable);
                     sstableIterator.remove();
                 }

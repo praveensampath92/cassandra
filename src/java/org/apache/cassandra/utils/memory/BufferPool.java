@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.io.compress.BufferType;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.utils.NoSpamLogger;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -60,7 +59,6 @@ public class BufferPool
     public static boolean DEBUG = false;
 
     private static final Logger logger = LoggerFactory.getLogger(BufferPool.class);
-    private static final NoSpamLogger noSpamLogger = NoSpamLogger.getLogger(logger, 15L, TimeUnit.MINUTES);
     private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocateDirect(0);
 
     /** A global pool of chunks (page aligned buffers) */
@@ -260,8 +258,6 @@ public class BufferPool
                 long cur = memoryUsage.get();
                 if (cur + MACRO_CHUNK_SIZE > MEMORY_USAGE_THRESHOLD)
                 {
-                    noSpamLogger.info("Maximum memory usage reached ({} bytes), cannot allocate chunk of {} bytes",
-                                      MEMORY_USAGE_THRESHOLD, MACRO_CHUNK_SIZE);
                     return false;
                 }
                 if (memoryUsage.compareAndSet(cur, cur + MACRO_CHUNK_SIZE))
