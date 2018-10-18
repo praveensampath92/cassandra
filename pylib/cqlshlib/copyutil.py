@@ -1822,6 +1822,7 @@ class ImportConversion(object):
             return bytearray.fromhex(v[2:])
 
         def convert_text(v, **_):
+            v = v.decode('string_escape')
             return v
 
         def convert_uuid(v, **_):
