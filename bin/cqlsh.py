@@ -1167,6 +1167,12 @@ class Shell(cmd.Cmd):
         cmdword = tokens[0][1]
         if cmdword == '?':
             cmdword = 'help'
+
+        forbidden, table = self.is_forbidden_statement(tokens)
+        if forbidden:
+            self.printerr('Mutations on {0} are not allowed.'.format(table))
+            return
+
         custom_handler = getattr(self, 'do_' + cmdword.lower(), None)
         if custom_handler:
             parsed = cqlruleset.cql_whole_parse_tokens(tokens, srcstr=srcstr,
@@ -1177,6 +1183,26 @@ class Shell(cmd.Cmd):
             else:
                 return self.handle_parse_error(cmdword, tokens, parsed, srcstr)
         return self.perform_statement(cqlruleset.cql_extract_orig(tokens, srcstr))
+
+    def is_forbidden_statement(self, tokens):
+        # Checks whether the statement mutates data in restricted tables
+
+        restricted_tables = [
+            'sharded_chain_blob_store_group',
+            'dc_blob_store_group'
+        ]
+
+        cmdword = tokens[0][1]
+
+        if cmdword.lower() not in ('insert', 'update', 'delete'):
+            return False, None
+
+        identifiers = [token[1] for token in tokens if token[0] == 'identifier']
+        for table in restricted_tables:
+            if table in identifiers:
+                return True, table
+
+        return False, None
 
     def handle_parse_error(self, cmdword, tokens, parsed, srcstr):
         if cmdword.lower() in ('select', 'insert', 'update', 'delete', 'truncate',
